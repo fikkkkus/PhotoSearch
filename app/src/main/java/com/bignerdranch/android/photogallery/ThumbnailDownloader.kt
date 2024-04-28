@@ -30,7 +30,7 @@ class ThumbnailDownloader<in T>(
     private val requestMap = ConcurrentHashMap<T, String>()
     private val flickrFetchr = FlickrFetchr()
 
-    private val cache = object : LruCache<String, Bitmap>(200) {
+    private val cache = object : LruCache<String, Bitmap>(30) {
         fun getBitmapFromMemory(key: String?): Bitmap? {
             return this[key]
         }

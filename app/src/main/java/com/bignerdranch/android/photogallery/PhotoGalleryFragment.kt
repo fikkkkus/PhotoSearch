@@ -1,5 +1,7 @@
 package com.bignerdranch.android.photogallery
 
+import android.app.Activity
+import android.content.Context
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
@@ -13,23 +15,38 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
+import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
 import android.widget.ImageView
+import android.widget.ProgressBar
+import androidx.annotation.NonNull
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProviders
 import androidx.lifecycle.lifecycleScope
+import androidx.paging.LoadState
+import androidx.paging.PagingData
 import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequest
+import androidx.work.WorkManager
+import com.bignerdranch.android.photogallery.worker.PollWorker
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val TAG = "PhotoGalleryFragment"
 
 class PhotoGalleryFragment : Fragment() {
 
     private lateinit var photoRecyclerView: RecyclerView
+    private lateinit var progressBar: ProgressBar
     private lateinit var photoGalleryViewModel: PhotoGalleryViewModel
     private lateinit var thumbnailDownloader: ThumbnailDownloader<PhotoAdapter.PhotoHolder>
     private var WIDTH_COLUMN = 300
@@ -47,6 +64,15 @@ class PhotoGalleryFragment : Fragment() {
             }
 
         lifecycle.addObserver(thumbnailDownloader.fragmentLifecycleObserver)
+
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.UNMETERED)
+            .build()
+        val workRequest = OneTimeWorkRequest
+            .Builder(PollWorker::class.java)
+            .setConstraints(constraints)
+            .build()
+        WorkManager.getInstance().enqueue(workRequest)
     }
 
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
@@ -58,6 +84,9 @@ class PhotoGalleryFragment : Fragment() {
         searchView.apply {
             setOnQueryTextListener(object : SearchView.OnQueryTextListener {
                 override fun onQueryTextSubmit(queryText: String): Boolean {
+                    progressBar.visibility = View.VISIBLE
+                    photoRecyclerView.visibility = View.GONE
+                    searchView.onActionViewCollapsed()
                     photoGalleryViewModel.assignNewPageSource(queryText)
                     viewLifecycleOwner.lifecycleScope.launch {
                         (photoRecyclerView.adapter as? PhotoAdapter)?.refresh()
@@ -69,6 +98,24 @@ class PhotoGalleryFragment : Fragment() {
                     return false
                 }
             })
+            setOnSearchClickListener {
+                val searchTerm = photoGalleryViewModel.searchTerm
+                searchView.setQuery(searchTerm, false)
+            }
+        }
+
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.menu_item_clear -> {
+                photoGalleryViewModel.assignNewPageSource("")
+                viewLifecycleOwner.lifecycleScope.launch {
+                    (photoRecyclerView.adapter as? PhotoAdapter)?.refresh()
+                }
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
         }
     }
 
@@ -82,8 +129,10 @@ class PhotoGalleryFragment : Fragment() {
         photoGalleryViewModel = ViewModelProviders.of(this)[PhotoGalleryViewModel::class.java]
 
         val view = inflater.inflate(R.layout.fragment_photo_gallery, container, false)
-        photoRecyclerView = view.findViewById(R.id.photo_recycler_view)
 
+        progressBar = view.findViewById(R.id.progressBar)
+
+        photoRecyclerView = view.findViewById(R.id.photo_recycler_view)
         photoRecyclerView.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
             override fun onGlobalLayout() {
                 val columnWidth = WIDTH_COLUMN
@@ -102,8 +151,14 @@ class PhotoGalleryFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        val adapter = PhotoAdapter(layoutInflater, thumbnailDownloader)
 
+        val adapter = PhotoAdapter(layoutInflater, thumbnailDownloader)
+        adapter.addLoadStateListener { loadState ->
+            if (loadState.refresh is LoadState.NotLoading) {
+                photoRecyclerView.visibility = View.VISIBLE
+                progressBar.visibility = View.GONE
+            }
+        }
         ViewTreeObserver.OnGlobalLayoutListener {
             photoRecyclerView
         }

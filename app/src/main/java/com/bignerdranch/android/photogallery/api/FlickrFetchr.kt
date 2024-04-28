@@ -3,10 +3,7 @@ package com.bignerdranch.android.photogallery.api
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
-import androidx.annotation.MainThread
 import androidx.annotation.WorkerThread
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import com.bignerdranch.android.photogallery.GalleryItem
 import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
@@ -51,14 +48,23 @@ class FlickrFetchr {
         return bitmap
     }
 
-    suspend fun fetchPhotos(page: Int = 1): List<GalleryItem> {
-        return fetchPhotoMetadata(flickrApi.fetchPhotos(page))
-    }
-    suspend fun searchPhotos(page: Int = 1, query: String): List<GalleryItem> {
-        return fetchPhotoMetadata(flickrApi.searchPhotos(page, query))
+    fun fetchPhotosRequest(page: Int): Call<PhotoResponse> {
+        return flickrApi.fetchPhotos(page)
     }
 
-    suspend fun fetchPhotoMetadata(flickrRequest: Call<PhotoResponse>): List<GalleryItem> {
+    fun searchPhotosRequest(page: Int, query: String): Call<PhotoResponse> {
+        return flickrApi.searchPhotos(page, query)
+    }
+
+    suspend fun fetchPhotos(page: Int): List<GalleryItem> {
+        return fetchPhotoMetadata(fetchPhotosRequest(page))
+    }
+
+    suspend fun searchPhotos(page: Int, query: String): List<GalleryItem> {
+        return fetchPhotoMetadata(searchPhotosRequest(page, query))
+    }
+
+    private suspend fun fetchPhotoMetadata(flickrRequest: Call<PhotoResponse>): List<GalleryItem> {
         return suspendCoroutine { continuation ->
             flickrRequest.enqueue(object : Callback<PhotoResponse> {
                 override fun onFailure(call: Call<PhotoResponse>, t: Throwable) {
@@ -77,27 +83,6 @@ class FlickrFetchr {
             })
         }
     }
-
-//    suspend fun fetchPhotos(page: Int = 1): List<GalleryItem> {
-//        return suspendCoroutine { continuation ->
-//            val flickrRequest: Call<PhotoResponse> = flickrApi.fetchPhotos(page)
-//            flickrRequest.enqueue(object : Callback<PhotoResponse> {
-//                override fun onFailure(call: Call<PhotoResponse>, t: Throwable) {
-//                    Log.e(TAG, "Failed to fetch photos", t)
-//                    continuation.resume(emptyList())
-//                }
-//
-//                override fun onResponse(call: Call<PhotoResponse>, response: Response<PhotoResponse>) {
-//                    val photoResponse: PhotoResponse? = response.body()
-//                    var galleryItems: List<GalleryItem> = photoResponse?.galleryItems ?: emptyList()
-//                    galleryItems = galleryItems.filterNot {
-//                        it.url?.let { url -> url.isBlank() } ?: false
-//                    }
-//                    continuation.resume(galleryItems)
-//                }
-//            })
-//        }
-//    }
 
 
 }
