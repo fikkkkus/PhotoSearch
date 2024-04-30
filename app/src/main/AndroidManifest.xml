@@ -6,6 +6,11 @@
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <permission android:name="com.bignerdranch.android.photogallery.PRIVATE"
+        android:protectionLevel="signature" />
+    <uses-permission
+        android:name="com.bignerdranch.android.photogallery.PRIVATE" />
+
     <application
         android:name=".PhotoGalleryApplication"
         android:allowBackup="true"
@@ -17,6 +22,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.PhotoGallery"
         tools:targetApi="31">
+
         <activity
             android:name=".PhotoGalleryActivity"
             android:exported="true">
@@ -26,6 +32,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".webview.PhotoPageActivity"/>
+
+        <receiver
+            android:name=".notifications.NotificationReceiver"
+            android:exported="false">
+            <intent-filter android:priority="-999">
+                <action
+                    android:name="com.bignerdranch.android.photogallery.SHOW_NOTIFICATION" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>
