@@ -70,6 +70,15 @@ class PhotoGalleryFragment : VisibleFragment() {
         super.onCreateOptionsMenu(menu, inflater)
         inflater.inflate(R.menu.fragment_photo_gallery, menu)
 
+        val toggleItem = menu.findItem(R.id.menu_item_toggle_polling)
+        val isPolling = QueryPreferences.isPolling(requireContext())
+        val toggleItemTitle = if (isPolling) {
+            R.string.stop_polling
+        } else {
+            R.string.start_polling
+        }
+        toggleItem.setTitle(toggleItemTitle)
+
         val searchItem: MenuItem = menu.findItem(R.id.menu_item_search)
         val searchView = searchItem.actionView as SearchView
         searchView.apply {
@@ -90,19 +99,17 @@ class PhotoGalleryFragment : VisibleFragment() {
                 }
             })
             setOnSearchClickListener {
+                toggleItem.isVisible = false
                 val searchTerm = photoGalleryViewModel.searchTerm
                 searchView.setQuery(searchTerm, false)
+                true
             }
-        }
+            setOnCloseListener {
+                activity?.invalidateOptionsMenu()
+                false
+            }
 
-        val toggleItem = menu.findItem(R.id.menu_item_toggle_polling)
-        val isPolling = QueryPreferences.isPolling(requireContext())
-        val toggleItemTitle = if (isPolling) {
-            R.string.stop_polling
-        } else {
-            R.string.start_polling
         }
-        toggleItem.setTitle(toggleItemTitle)
 
     }
 
@@ -110,6 +117,8 @@ class PhotoGalleryFragment : VisibleFragment() {
         return when (item.itemId) {
             R.id.menu_item_clear -> {
                 photoGalleryViewModel.assignNewPageSource("")
+                photoRecyclerView.visibility = View.GONE
+                progressBar.visibility = View.VISIBLE
                 viewLifecycleOwner.lifecycleScope.launch {
                     (photoRecyclerView.adapter as? PhotoAdapter)?.refresh()
                 }

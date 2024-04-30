@@ -34,7 +34,8 @@
         </activity>
 
         <activity
-            android:name=".webview.PhotoPageActivity"/>
+            android:name=".webview.PhotoPageActivity"
+            android:configChanges="keyboardHidden|orientation|screenSize" />
 
         <receiver
             android:name=".notifications.NotificationReceiver"
