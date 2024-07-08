@@ -1,2 +1,1 @@
-parsing photos from the Flickr site:
-receiving notifications about new photos, viewing a post about an image
+Это был проект для парсинга фотографий с сайта по запросу. При появлении новых фотографий приходят уведомления. В проекте используются Retrofit и JSON. Фотографии кешируются и подгружаются по мере прокрутки пользователем.
